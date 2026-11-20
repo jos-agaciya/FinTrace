@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.material-symbols-outlined {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  line-height: 1 !important;
+  box-sizing: content-box;
+  overflow: hidden;
+  white-space: nowrap;
+  direction: ltr;
+  vertical-align: middle;
+}
+
+/* Premium Liquid Glass Styling (Soft, Organic, Deep Blur) */
+.liquid-glass-surface {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.90) 0%, rgba(242, 247, 253, 0.82) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 20px 40px -15px rgba(110, 184, 225, 0.22), 0 6px 18px -4px rgba(15, 23, 42, 0.04), inset 0 1px 2px 0 rgba(255, 255, 255, 1);
+  transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.dark .liquid-glass-surface {
+  background: linear-gradient(135deg, rgba(46, 44, 49, 0.88) 0%, rgba(36, 34, 39, 0.84) 65%, rgba(68, 36, 75, 0.45) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.65), 0 6px 20px -6px rgba(206, 77, 219, 0.20), inset 0 1px 1px 0 rgba(242, 225, 253, 0.18);
+  transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Floating Glass Dropdown Panels with High Opacity for 100% Readability */
+.glass-dropdown {
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(214, 230, 242, 0.85);
+  box-shadow: 0 24px 54px -12px rgba(15, 23, 42, 0.18), 0 8px 24px -6px rgba(110, 184, 225, 0.22);
+}
+
+.dark .glass-dropdown {
+  background: rgba(35, 33, 38, 0.96);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 24px 54px -12px rgba(0, 0, 0, 0.75), 0 8px 28px -6px rgba(206, 77, 219, 0.32);
+}
+
+/* Nested Sub-Cards Inside Glass Surfaces */
+.glass-nested {
+  background: rgba(255, 255, 255, 0.70);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.dark .glass-nested {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes floatSlowAlt {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(6px); }
+}
+
+.float-card-a { animation: floatSlow 6s ease-in-out infinite; }
+.float-card-b { animation: floatSlowAlt 7s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .float-card-a, .float-card-b { animation: none !important; }
+}

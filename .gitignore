@@ -1,0 +1,38 @@
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+backend/fintrace.db
+fintrace.db
+
+# Python artifacts
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+**/.pytest_cache/
+.venv/
+venv/
+ENV/
+
+# Coverage and packaging
+.coverage
+htmlcov/
+*.egg-info/
+build/

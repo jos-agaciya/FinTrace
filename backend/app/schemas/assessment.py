@@ -30,6 +30,39 @@ class DimensionScores(BaseModel):
     risk_awareness: float
     assumption_awareness: float
     confidence_calibration: float  # Conceptual: Confidence Justification & Epistemic Alignment
+    invalidation_sensitivity: Optional[float] = None
+    horizon_calibration: Optional[float] = None
+    provenance_rigor: Optional[float] = None
+    epistemic_calibration: Optional[float] = None
+
+
+class AssessmentQuestionOption(BaseModel):
+    id: str
+    label: str
+    description: Optional[str] = None
+
+
+class AssessmentDimensionPrompt(BaseModel):
+    id: str
+    name: str
+    description: str
+    prompt: str
+    type: str  # multi_select, boolean, slider, select, textarea
+    options: Optional[List[AssessmentQuestionOption]] = None
+
+
+class AssessmentPromptResponse(BaseModel):
+    stage: AssessmentStage
+    claim_id: str
+    ticker: str
+    company_name: str
+    statement: str
+    time_horizon: str
+    source_context: str
+    target_value: Optional[float] = None
+    target_unit: Optional[str] = None
+    guidance: str
+    dimensions: List[AssessmentDimensionPrompt]
 
 
 class AssessmentResponse(BaseModel):

@@ -46,10 +46,10 @@ class BaseAIProvider(ABC):
 class GroqProvider(BaseAIProvider):
     """Groq API integration adapter."""
 
-    def __init__(self, api_key: Optional[str] = None, timeout: float = 15.0):
+    def __init__(self, api_key: Optional[str] = None, timeout: float = 25.0):
         super().__init__(api_key=api_key or settings.GROQ_API_KEY, timeout=timeout)
         self.name = "groq"
-        self.model = "llama-3.3-70b-versatile"
+        self.model = getattr(settings, "GROQ_MODEL", "openai/gpt-oss-120b")
 
     async def analyze_claim(
         self,
@@ -73,6 +73,7 @@ class GroqProvider(BaseAIProvider):
                     json={
                         "model": self.model,
                         "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": 2048,
                         "response_format": {"type": "json_object"}
                     }
                 )
@@ -107,6 +108,7 @@ class GroqProvider(BaseAIProvider):
                     json={
                         "model": self.model,
                         "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": 2048,
                         "response_format": {"type": "json_object"}
                     }
                 )
@@ -121,10 +123,10 @@ class GroqProvider(BaseAIProvider):
 class GeminiProvider(BaseAIProvider):
     """Google Gemini API integration adapter."""
 
-    def __init__(self, api_key: Optional[str] = None, timeout: float = 15.0):
+    def __init__(self, api_key: Optional[str] = None, timeout: float = 25.0):
         super().__init__(api_key=api_key or settings.GEMINI_API_KEY, timeout=timeout)
         self.name = "gemini"
-        self.model = "gemini-2.5-flash"
+        self.model = getattr(settings, "GEMINI_MODEL", "gemini-3.5-flash-lite")
 
     async def analyze_claim(
         self,
@@ -190,6 +192,82 @@ class GeminiProvider(BaseAIProvider):
             raise ProviderUnavailableException(f"Gemini review failed: {str(e)}")
 
 
+class AIEngineProvider(BaseAIProvider):
+    """Provider adapter connecting backend to the FinTraceAIEngine."""
+
+    def __init__(self, timeout: float = 15.0):
+        super().__init__(api_key="internal", timeout=timeout)
+        self.name = "ai-engine"
+
+    async def analyze_claim(
+        self,
+        claim_text: str,
+        evidence_bundle: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        from backend.app.integrations.ai_engine_adapter import AIEngineAdapter
+        adapter = AIEngineAdapter.get_instance()
+        if not adapter.is_available:
+            raise ProviderUnavailableException("FinTraceAIEngine is not available")
+
+        res = await adapter.analyze_claim_end_to_end(
+            raw_text=claim_text,
+            retrieved_evidence=evidence_bundle
+        )
+        if not res:
+            raise ProviderUnavailableException("FinTraceAIEngine returned empty analysis")
+
+        direction_val = res.claim.direction.value if hasattr(res.claim.direction, "value") else str(res.claim.direction)
+
+        forks = []
+        if res.fork_analysis and res.fork_analysis.forks:
+            for f in res.fork_analysis.forks:
+                forks.append({
+                    "title": f.title,
+                    "description": f.description,
+                    "ambiguous_phrase": f.ambiguous_phrase or "unstated condition",
+                    "assumptions": f.assumptions,
+                    "information_required": f.distinguishing_data,
+                    "is_ai_generated": True
+                })
+
+        return {
+            "direction": direction_val,
+            "target": res.claim.target_metric,
+            "horizon": res.claim.time_horizon,
+            "missing_fields": res.claim.unstated_assumptions,
+            "interpretation_summary": res.claim.claim_summary,
+            "falsifiability_score": round(res.claim.falsifiability_score * 100.0, 1),
+            "forks": forks,
+            "risk_indicators": [r.model_dump() for r in res.claim.risk_indicators],
+            "validation_issues": [i.model_dump() for i in res.validation.issues],
+            "dual_review": res.dual_model_review.model_dump() if res.dual_model_review else None,
+            "primary_provider": res.primary_provider,
+            "primary_model": res.primary_model,
+            "fallback_used": res.fallback_used,
+            "is_degraded": res.is_degraded,
+            "provenance": "AI_GENERATED_MOCK" if "mock" in res.primary_provider.lower() else "AI_GENERATED_LIVE",
+        }
+
+    async def review_analysis(
+        self,
+        claim_text: str,
+        evidence_bundle: List[Dict[str, Any]],
+        primary_analysis: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        if primary_analysis.get("dual_review"):
+            rev = primary_analysis["dual_review"]
+            return {
+                "agrees": rev.get("agrees", True),
+                "material_disagreements": rev.get("disagreement_reasons", []),
+                "critique": rev.get("critique", "Verified by DualModelReviewer.")
+            }
+        return {
+            "agrees": True,
+            "material_disagreements": [],
+            "critique": "Analysis validated by AI Engine."
+        }
+
+
 def get_ai_provider(provider_name: str) -> BaseAIProvider:
     """Factory function for instantiating provider adapters."""
     lowered = provider_name.lower().strip()
@@ -197,5 +275,7 @@ def get_ai_provider(provider_name: str) -> BaseAIProvider:
         return GroqProvider()
     elif lowered == "gemini":
         return GeminiProvider()
+    elif lowered in ["ai-engine", "fintrace-ai-engine", "engine"]:
+        return AIEngineProvider()
     else:
         raise ValueError(f"Unknown AI provider: {provider_name}")

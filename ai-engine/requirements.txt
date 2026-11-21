@@ -1,0 +1,10 @@
+# FinTrace AI Engine Core Dependencies
+pydantic>=2.6.0,<3.0.0
+httpx>=0.27.0,<1.0.0
+groq>=0.11.0
+google-genai>=0.1.0
+python-dotenv>=1.0.0
+
+# Testing and Async Support
+pytest>=8.0.0
+pytest-asyncio>=0.23.0

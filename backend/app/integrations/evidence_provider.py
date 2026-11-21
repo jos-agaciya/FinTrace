@@ -82,6 +82,42 @@ def parse_nse_date(dt_str: Optional[str]) -> Optional[datetime]:
     return None
 
 
+async def extract_pdf_passage(
+    url: str,
+    timeout: float = 6.0,
+    headers: Optional[Dict[str, str]] = None
+) -> Optional[str]:
+    """
+    Extracts text passages directly from PDF filings (e.g. NSE/BSE filings) using pypdf.
+    Returns cleaned text excerpt (up to 1200 characters) or None on failure.
+    """
+    if not url or not (url.lower().endswith(".pdf") or "corporate" in url.lower()):
+        return None
+    try:
+        req_headers = headers or {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "*/*"
+        }
+        async with httpx.AsyncClient(timeout=timeout, headers=req_headers, follow_redirects=True) as client:
+            resp = await client.get(url)
+            if resp.status_code == 200 and len(resp.content) > 100:
+                import io
+                import pypdf
+                reader = pypdf.PdfReader(io.BytesIO(resp.content))
+                extracted_pages = []
+                for page in reader.pages[:2]:
+                    text = page.extract_text()
+                    if text:
+                        extracted_pages.append(text)
+                full_text = " ".join(extracted_pages).strip()
+                if full_text:
+                    normalized = " ".join(full_text.split())
+                    return normalized[:1200]
+    except Exception:
+        return None
+    return None
+
+
 class BaseEvidenceProvider(ABC):
     """Abstract interface for financial evidence providers."""
 
@@ -177,11 +213,19 @@ class NSEDisclosuresProvider(BaseEvidenceProvider):
                     isin = ann.get("sm_isin") or entity.get("isin")
                     company_disp = ann.get("sm_name") or entity.get("name")
 
-                    content_summary = (
-                        f"Official statutory filing submitted by {company_disp} (NSE: {symbol}) "
-                        f"to the National Stock Exchange of India. Description: {raw_title[:200]}. "
-                        f"Verified primary exchange record."
-                    )
+                    # Attempt genuine PDF passage extraction if attachment is accessible
+                    pdf_passage = await extract_pdf_passage(pdf_url, timeout=min(self.timeout, 5.0), headers=self.headers)
+                    if pdf_passage:
+                        content_summary = (
+                            f"Official statutory filing submitted by {company_disp} (NSE: {symbol}) "
+                            f"to the National Stock Exchange of India.\n[Extracted Passage]: {pdf_passage}"
+                        )
+                    else:
+                        content_summary = (
+                            f"Official statutory filing submitted by {company_disp} (NSE: {symbol}) "
+                            f"to the National Stock Exchange of India. Description: {raw_title[:200]}. "
+                            f"Verified primary exchange record."
+                        )
 
                     evidence_items.append({
                         "title": clean_title,

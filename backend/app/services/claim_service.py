@@ -11,7 +11,7 @@ class ClaimService:
         self.repository = ClaimRepository(db)
         self.validator = ClaimValidator()
 
-    def submit_claim(self, claim_in: ClaimCreate) -> ClaimModel:
+    def submit_claim(self, claim_in: ClaimCreate, user_id: Optional[str] = None) -> ClaimModel:
         """
         Ingests a financial claim, preserves original text untouched,
         extracts explicit facts, and strictly preserves missing details as None.
@@ -26,6 +26,7 @@ class ClaimService:
             source_url=claim_in.source_url,
             source_platform=claim_in.source_platform,
             provenance_status=claim_in.provenance_status.value,
+            user_id=user_id,
             company_name=extracted.get("company_name"),
             ticker=extracted.get("ticker"),
             exchange=extracted.get("exchange"),
@@ -46,9 +47,9 @@ class ClaimService:
     def get_claim(self, claim_id: str) -> Optional[ClaimModel]:
         return self.repository.get_by_id(claim_id)
 
-    def list_claims(self, skip: int = 0, limit: int = 50) -> Tuple[List[ClaimModel], int]:
-        total = self.repository.count()
-        items = self.repository.get_all(skip=skip, limit=limit)
+    def list_claims(self, user_id: Optional[str] = None, skip: int = 0, limit: int = 50) -> Tuple[List[ClaimModel], int]:
+        total = self.repository.count(user_id=user_id)
+        items = self.repository.get_all(user_id=user_id, skip=skip, limit=limit)
         return items, total
 
     def delete_claim(self, claim_id: str) -> bool:

@@ -104,14 +104,33 @@ class AnalysisOrchestrator:
             except Exception as e_rev:
                 secondary_output = {"agrees": True, "critique": f"Secondary review bypassed: {str(e_rev)}"}
 
+        # Extract structured parameters into claim model if not previously set
+        if not claim.claim_direction and primary_output.get("direction"):
+            dir_str = str(primary_output["direction"]).upper()
+            if "BULL" in dir_str:
+                claim.claim_direction = "BULLISH"
+            elif "BEAR" in dir_str:
+                claim.claim_direction = "BEARISH"
+            elif "NEUT" in dir_str:
+                claim.claim_direction = "NEUTRAL"
+        if not claim.time_horizon and primary_output.get("horizon"):
+            claim.time_horizon = str(primary_output["horizon"])
+
         # 4. Deterministic Falsifiability Analysis
-        falsifiability_score, missing_fields, testability_explanation = self.validator.calculate_falsifiability(
+        det_score, det_missing, testability_explanation = self.validator.calculate_falsifiability(
             target_value=claim.target_value,
             time_horizon=claim.time_horizon,
             entry_condition=claim.entry_condition,
             exit_condition=claim.exit_condition,
             invalidation_condition=claim.invalidation_condition
         )
+
+        # Merge extracted unstated assumptions with deterministic missing fields
+        ai_missing = primary_output.get("missing_fields") or []
+        combined_missing = list(dict.fromkeys(det_missing + (ai_missing if isinstance(ai_missing, list) else [str(ai_missing)])))
+        falsifiability_score = primary_output.get("falsifiability_score", det_score)
+        if not isinstance(falsifiability_score, (int, float)):
+            falsifiability_score = det_score
 
         # 5. Deterministic Statement Categorization
         categorized = self.validator.categorize_statements(
@@ -120,15 +139,22 @@ class AnalysisOrchestrator:
             analysis_summary=primary_output.get("interpretation_summary")
         )
 
-        # 6. Check for Material Disagreements
+        # 6. Check for Material Disagreements and Epistemic Guardrail
         has_disagreement, issues = self.validator.detect_material_disagreements(
             primary_output=primary_output,
             secondary_output=secondary_output
         )
 
+        # Epistemic Guardrail: Do not treat model agreement as proof of truth
+        if not has_disagreement and secondary_output.get("agrees") is True:
+            issues.append("Epistemic Guardrail: Primary model and secondary reviewer agree, but cross-model concordance does not constitute empirical verification.")
+
         validation_status = "PASSED"
-        if has_disagreement:
-            provider_status = "NEEDS_VERIFICATION"
+        if provider_status == "PROVIDER_UNAVAILABLE":
+            validation_status = "DEGRADED"
+        elif has_disagreement:
+            if provider_status != "FALLBACK_USED":
+                provider_status = "NEEDS_VERIFICATION"
             validation_status = "WARNING"
 
         # 7. Persist Analysis Record
@@ -138,8 +164,8 @@ class AnalysisOrchestrator:
             secondary_provider=self.secondary_provider.name,
             provider_status=provider_status,
             fallback_reason=fallback_reason,
-            falsifiability_score=falsifiability_score,
-            missing_fields=json.dumps(missing_fields),
+            falsifiability_score=float(falsifiability_score),
+            missing_fields=json.dumps(combined_missing),
             testability_explanation=testability_explanation,
             categorized_statements=json.dumps(categorized),
             validation_status=validation_status,
@@ -150,16 +176,37 @@ class AnalysisOrchestrator:
         self.db.add(analysis)
 
         # 8. Generate Interpretation Forks for ambiguous or multiple interpretations
-        self._generate_interpretation_forks(claim)
+        self._generate_interpretation_forks(claim, forks=primary_output.get("forks"))
 
         self.db.commit()
         self.db.refresh(analysis)
         return analysis
 
-    def _generate_interpretation_forks(self, claim: ClaimModel):
+    def _generate_interpretation_forks(self, claim: ClaimModel, forks: Optional[List[Dict[str, Any]]] = None):
         """Generates explicit alternative interpretation forks labeled as AI_GENERATED."""
         existing_forks = self.db.query(InterpretationForkModel).filter_by(claim_id=claim.id).count()
         if existing_forks > 0:
+            return
+
+        # If AI Engine provided interpretation forks, persist them
+        if forks and isinstance(forks, list) and len(forks) > 0:
+            for f in forks:
+                assumptions_val = f.get("assumptions", [])
+                if isinstance(assumptions_val, list):
+                    assumptions_json = json.dumps(assumptions_val)
+                else:
+                    assumptions_json = json.dumps([str(assumptions_val)])
+
+                fork_model = InterpretationForkModel(
+                    claim_id=claim.id,
+                    title=f.get("title", "Alternative Thesis"),
+                    description=f.get("description", "Alternative scenario evaluated under distinct market assumptions."),
+                    ambiguous_phrase=f.get("ambiguous_phrase") or claim.time_horizon or "unstated condition",
+                    assumptions=assumptions_json,
+                    information_required=f.get("information_required") or "Audited quarterly financial statements",
+                    is_ai_generated=True
+                )
+                self.db.add(fork_model)
             return
 
         horizon_str = claim.time_horizon or "unspecified timeframe"

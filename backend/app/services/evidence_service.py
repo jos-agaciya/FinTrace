@@ -128,5 +128,8 @@ class EvidenceService:
     def get_claim_evidence(self, claim_id: str) -> List[ClaimEvidenceModel]:
         return self.repository.get_claim_evidence(claim_id)
 
+    def list_all(self, query_str: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[EvidenceModel]:
+        return self.repository.get_all(query_str=query_str, skip=skip, limit=limit)
+
     def get_evidence_item(self, evidence_id: str) -> Optional[EvidenceModel]:
         return self.repository.get_by_id(evidence_id)

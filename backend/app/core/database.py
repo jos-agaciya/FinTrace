@@ -30,6 +30,7 @@ def get_db():
 
 def init_db():
     """Initialize database tables with safe column migrations for SQLite."""
+    import backend.app.models.user
     import backend.app.models.claim
     import backend.app.models.evidence
     import backend.app.models.analysis
@@ -59,4 +60,20 @@ def init_db():
                 conn.commit()
             except Exception:
                 # Table may not yet be initialized or not an SQLite dialect
+                pass
+
+            try:
+                claim_cols = {row[1] for row in conn.execute(text("PRAGMA table_info(claims);")).fetchall()}
+                if "user_id" not in claim_cols:
+                    conn.execute(text("ALTER TABLE claims ADD COLUMN user_id VARCHAR(36) REFERENCES users(id);"))
+                conn.commit()
+            except Exception:
+                pass
+
+            try:
+                dec_cols = {row[1] for row in conn.execute(text("PRAGMA table_info(decisions);")).fetchall()}
+                if "user_id" not in dec_cols:
+                    conn.execute(text("ALTER TABLE decisions ADD COLUMN user_id VARCHAR(36) REFERENCES users(id);"))
+                conn.commit()
+            except Exception:
                 pass

@@ -36,3 +36,15 @@ class EvidenceRepository:
 
     def get_claim_evidence(self, claim_id: str) -> List[ClaimEvidenceModel]:
         return self.db.query(ClaimEvidenceModel).filter(ClaimEvidenceModel.claim_id == claim_id).all()
+
+    def get_all(self, query_str: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[EvidenceModel]:
+        query = self.db.query(EvidenceModel)
+        if query_str:
+            term = f"%{query_str}%"
+            query = query.filter(
+                (EvidenceModel.title.ilike(term)) |
+                (EvidenceModel.company_symbol.ilike(term)) |
+                (EvidenceModel.publisher.ilike(term)) |
+                (EvidenceModel.content_summary.ilike(term))
+            )
+        return query.order_by(EvidenceModel.created_at.desc()).offset(skip).limit(limit).all()

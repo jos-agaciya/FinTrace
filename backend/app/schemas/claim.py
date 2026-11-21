@@ -48,6 +48,34 @@ class ClaimResponse(BaseModel):
     entity_ambiguity_notes: Optional[str] = None
     created_at: datetime
 
+    # Optional frontend presentation fields
+    company: Optional[str] = None
+    statement: Optional[str] = None
+    date: Optional[str] = None
+    validationStatus: Optional[str] = None
+    direction: Optional[str] = None
+    evidenceCoverage: Optional[int] = None
+    horizon: Optional[str] = None
+    targetPrice: Optional[str] = None
+    currentPrice: Optional[str] = None
+    breakdown: Optional[dict] = None
+    completeness: Optional[dict] = None
+    interpretations: Optional[list] = None
+    supportingEvidence: Optional[list] = None
+    contradictoryEvidence: Optional[list] = None
+
+
+class ClaimAnalyzeRequest(BaseModel):
+    statement: Optional[str] = None
+    original_claim: Optional[str] = None
+    ticker: Optional[str] = None
+    company: Optional[str] = None
+    company_name: Optional[str] = None
+    sourceUrl: Optional[str] = None
+    source_url: Optional[str] = None
+    horizon: Optional[str] = None
+    time_horizon: Optional[str] = None
+
 
 class ClaimListResponse(BaseModel):
     total: int

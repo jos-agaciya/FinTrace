@@ -31,7 +31,11 @@ class ClaimModel(Base, BaseModelMixin):
     is_ambiguous_entity = Column(Boolean, default=False, nullable=False)
     entity_ambiguity_notes = Column(Text, nullable=True)
 
+    # Optional owning user for data isolation
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+
     # Relationships
+    user = relationship("UserModel", back_populates="claims")
     interpretation_forks = relationship("InterpretationForkModel", back_populates="claim", cascade="all, delete-orphan")
     analyses = relationship("AnalysisModel", back_populates="claim", cascade="all, delete-orphan")
     evidence_associations = relationship("ClaimEvidenceModel", back_populates="claim", cascade="all, delete-orphan")

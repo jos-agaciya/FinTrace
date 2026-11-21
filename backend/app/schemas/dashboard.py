@@ -24,6 +24,11 @@ class DashboardProgressResponse(BaseModel):
     dimension_breakdown: Optional[DimensionScores] = None
     status: str  # NOT_STARTED, BASELINE_COMPLETED, PRACTICE_IN_PROGRESS, ASSESSMENT_COMPLETED
     learning_progress_summary: str
+    practice_decisions_count: int = 0
+    baseline_score: Optional[float] = None
+    transfer_score: Optional[float] = None
+    delta: Optional[float] = None
+    has_transfer: Optional[bool] = None
 
 
 class DashboardHistoryResponse(BaseModel):

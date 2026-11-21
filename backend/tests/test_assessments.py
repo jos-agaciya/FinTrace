@@ -74,3 +74,23 @@ def test_deterministic_scoring_and_stage_comparison(client):
     assert hist_res.status_code == 200
     hist = hist_res.json()
     assert len(hist) == 2
+
+
+def test_assessment_prompt_endpoint(client):
+    # Test BASELINE prompt
+    b_res = client.get("/api/v1/assessments/prompt?stage=BASELINE")
+    assert b_res.status_code == 200
+    b_prompt = b_res.json()
+    assert b_prompt["stage"] == "BASELINE"
+    assert b_prompt["ticker"] == "APEX"
+    assert len(b_prompt["dimensions"]) == 5
+    assert b_prompt["claim_id"] is not None
+
+    # Test INDEPENDENT_TRANSFER prompt
+    t_res = client.get("/api/v1/assessments/prompt?stage=INDEPENDENT_TRANSFER")
+    assert t_res.status_code == 200
+    t_prompt = t_res.json()
+    assert t_prompt["stage"] == "INDEPENDENT_TRANSFER"
+    assert t_prompt["ticker"] == "NVEC"
+    assert len(t_prompt["dimensions"]) == 5
+    assert t_prompt["claim_id"] is not None

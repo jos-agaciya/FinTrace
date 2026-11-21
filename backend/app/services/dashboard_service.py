@@ -24,21 +24,34 @@ class DashboardService:
         self.decision_service = DecisionService(db)
         self.assessment_service = AssessmentService(db)
 
-    def get_overview(self) -> DashboardOverviewResponse:
-        total_claims = self.db.query(ClaimModel).count()
-        total_analyses = self.db.query(AnalysisModel).count()
+    def get_overview(self, user_id: Optional[str] = None) -> DashboardOverviewResponse:
+        claims_query = self.db.query(ClaimModel)
+        decisions_query = self.db.query(DecisionModel)
+        
+        if user_id:
+            claims_query = claims_query.filter(ClaimModel.user_id == user_id)
+            decisions_query = decisions_query.filter(DecisionModel.user_id == user_id)
+
+        total_claims = claims_query.count()
+        total_decisions = decisions_query.count()
+        
+        # Calculate analyses for matching claims
+        if user_id:
+            total_analyses = self.db.query(AnalysisModel).join(ClaimModel).filter(ClaimModel.user_id == user_id).count()
+        else:
+            total_analyses = self.db.query(AnalysisModel).count()
+
         total_evidence = self.db.query(EvidenceModel).count()
-        total_decisions = self.db.query(DecisionModel).count()
 
         recent_claims = (
-            self.db.query(ClaimModel)
+            claims_query
             .order_by(ClaimModel.submitted_at.desc())
             .limit(5)
             .all()
         )
 
         recent_decision_records = (
-            self.db.query(DecisionModel)
+            decisions_query
             .order_by(DecisionModel.created_at.desc())
             .limit(5)
             .all()
@@ -76,6 +89,12 @@ class DashboardService:
         delta: Optional[float] = None
         dim_scores: Optional[DimensionScores] = None
 
+        practice_count = (
+            self.db.query(DecisionModel)
+            .filter(DecisionModel.user_id == session_id)
+            .count()
+        )
+
         if has_baseline and has_transfer:
             delta = round(transfer.total_score - baseline.total_score, 1)
             status = "ASSESSMENT_COMPLETED"
@@ -88,17 +107,29 @@ class DashboardService:
                 claim_specificity=transfer.score_claim_specificity,
                 risk_awareness=transfer.score_risk_awareness,
                 assumption_awareness=transfer.score_assumption_awareness,
-                confidence_calibration=transfer.score_confidence_calibration
+                confidence_calibration=transfer.score_confidence_calibration,
+                invalidation_sensitivity=transfer.score_assumption_awareness,
+                horizon_calibration=transfer.score_claim_specificity,
+                provenance_rigor=transfer.score_evidence_eval,
+                epistemic_calibration=transfer.score_confidence_calibration
             )
         elif has_baseline:
-            status = "BASELINE_COMPLETED"
-            summary = f"Baseline established at {baseline.total_score:.1f}/100. Ready for assisted practice and independent transfer."
+            if practice_count > 0:
+                status = "PRACTICE_IN_PROGRESS"
+                summary = f"Baseline established at {baseline.total_score:.1f}/100 with {practice_count} assisted practice decision(s) recorded. Ready for Stage 3 Independent Assessment."
+            else:
+                status = "BASELINE_COMPLETED"
+                summary = f"Baseline established at {baseline.total_score:.1f}/100. Ready for assisted practice and independent transfer."
             dim_scores = DimensionScores(
                 evidence_evaluation=baseline.score_evidence_eval,
                 claim_specificity=baseline.score_claim_specificity,
                 risk_awareness=baseline.score_risk_awareness,
                 assumption_awareness=baseline.score_assumption_awareness,
-                confidence_calibration=baseline.score_confidence_calibration
+                confidence_calibration=baseline.score_confidence_calibration,
+                invalidation_sensitivity=baseline.score_assumption_awareness,
+                horizon_calibration=baseline.score_claim_specificity,
+                provenance_rigor=baseline.score_evidence_eval,
+                epistemic_calibration=baseline.score_confidence_calibration
             )
         else:
             status = "NOT_STARTED"
@@ -113,7 +144,12 @@ class DashboardService:
             percentage_point_delta=delta,
             dimension_breakdown=dim_scores,
             status=status,
-            learning_progress_summary=summary
+            learning_progress_summary=summary,
+            practice_decisions_count=practice_count,
+            baseline_score=baseline_score,
+            transfer_score=transfer_score,
+            delta=delta,
+            has_transfer=has_transfer
         )
 
     def get_history(self, session_id: str) -> DashboardHistoryResponse:

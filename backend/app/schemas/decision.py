@@ -44,3 +44,19 @@ class DecisionResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     sensitivity_summary: Optional[DecisionSensitivitySummary] = None
+
+
+class DecisionCalibrationRequest(BaseModel):
+    initialStance: Optional[str] = "Bullish"
+    initialConfidence: float = Field(default=85.0, ge=0.0, le=100.0)
+    revisedStance: Optional[str] = "Neutral"
+    revisedConfidence: float = Field(default=58.0, ge=0.0, le=100.0)
+    refutedAssumptions: Optional[dict] = None
+
+
+class DecisionCalibrationResponse(BaseModel):
+    success: bool = True
+    calibrationScore: float
+    delta: float
+    insights: str
+

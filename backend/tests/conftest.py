@@ -6,6 +6,7 @@ from sqlalchemy.pool import StaticPool
 
 from backend.app.main import app
 from backend.app.core.database import Base, get_db
+import backend.app.models
 
 # Shared test engine across all tests
 test_engine = create_engine(

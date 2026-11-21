@@ -1,3 +1,4 @@
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from backend.app.core.database import get_db
@@ -16,6 +17,18 @@ def create_evidence(evidence_in: EvidenceCreate, db: Session = Depends(get_db)):
     """Add a verified evidence record."""
     service = EvidenceService(db)
     return service.store_evidence(evidence_in)
+
+
+@router.get("", response_model=List[EvidenceResponse])
+def list_evidence(
+    q: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    """List verified evidence disclosures with optional keyword search filter."""
+    service = EvidenceService(db)
+    return service.list_all(query_str=q, skip=skip, limit=limit)
 
 
 @router.get("/{claim_id}", response_model=ClaimEvidenceListResponse)

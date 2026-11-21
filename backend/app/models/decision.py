@@ -10,6 +10,7 @@ class DecisionModel(Base, BaseModelMixin):
 
     claim_id = Column(String(36), ForeignKey("claims.id", ondelete="CASCADE"), nullable=False, index=True)
     interpretation_id = Column(String(36), ForeignKey("interpretation_forks.id", ondelete="SET NULL"), nullable=True, index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Initial stance
     initial_thesis = Column(Text, nullable=False)
@@ -26,5 +27,6 @@ class DecisionModel(Base, BaseModelMixin):
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
 
     # Relationships
+    user = relationship("UserModel", back_populates="decisions")
     claim = relationship("ClaimModel", back_populates="decisions")
     interpretation_fork = relationship("InterpretationForkModel", back_populates="decisions")
